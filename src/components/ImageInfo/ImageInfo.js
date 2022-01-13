@@ -1,82 +1,70 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import imageAPI from '../ImageAPI/ImageAPI';
 import ImageGallery from '../ImageGallery';
 import Button from '../Button';
 import { Oval } from 'react-loader-spinner';
 
-class ImageInfo extends Component {
-  state = {
-    images: [],
-    error: null,
-    status: 'idle',
-    page: 1,
-  };
+const Status = {
+  IDLE: 'idle',
+  PENDING: 'pending',
+  RESOLVED: 'resolved',
+  REJECTED: 'rejected',
+};
 
-  static propTypes = {
-    imageName: PropTypes.string.isRequired,
-  };
+function ImageInfo({ imageName, images, page, setImages, setPage }) {
+  const [status, setStatus] = useState(Status.IDLE);
+  const [showButton, setShowButton] = useState(true);
 
-  componentDidUpdate(prevProps, prevState) {
-    const prevName = prevProps.imageName;
-    const nextName = this.props.imageName;
-    const prevPage = prevState.page;
-    const nextPage = this.state.page;
-
-    if (prevName !== nextName) {
-      this.setState({ page: 1 });
+  useEffect(() => {
+    if (imageName === '') {
+      return;
     }
 
-    if (prevName !== nextName || prevPage !== nextPage) {
-      this.setState({ status: 'pending' });
+    setStatus(Status.PENDING);
 
-      imageAPI
-        .fetchImages(nextName, nextPage)
-        .then(newImages => {
-          if (newImages.total !== 0) {
-            this.setState(prevState => ({
-              images: [...prevState.images, ...newImages.hits],
-              status: 'resolved',
-            }));
-            return;
-          }
+    imageAPI
+      .fetchImages(imageName, page)
+      .then(newImages => {
+        if (newImages.total > 0) {
+          setImages(prevImages => [...prevImages, ...newImages.hits]);
+          setStatus(Status.RESOLVED);
+          newImages.total < 12 ? setShowButton(false) : setShowButton(true);
+        } else return Promise.reject(new Error('Invalid request'));
+      })
+      .catch(err => {
+        setStatus(Status.REJECTED);
+      });
+  }, [imageName, page, setImages]);
 
-          return Promise.reject(new Error('Invalid request'));
-        })
-        .catch(error => this.setState({ error, status: 'rejected' }));
-    }
+  if (status === Status.IDLE) {
+    return <p className="SearchForm-message">Please enter your search term</p>;
   }
 
-  onClickLoadMore = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
-  };
+  if (status === Status.PENDING) {
+    return <Oval wrapperClass="Loader" arialLabel="loading-indicator" />;
+  }
 
-  render() {
-    const { status } = this.state;
+  if (status === Status.REJECTED) {
+    return <p className="SearchForm-message">Sorry, something went wrong</p>;
+  }
 
-    if (status === 'idle') {
-      return <p className="SearchForm-message">Please enter your search term</p>;
-    }
-
-    if (status === 'pending') {
-      return <Oval wrapperClass="Loader" arialLabel="loading-indicator" />;
-    }
-
-    if (status === 'rejected') {
-      return <p className="SearchForm-message">Sorry, something went wrong</p>;
-    }
-
-    if (status === 'resolved') {
-      return (
-        <>
-          <ImageGallery images={this.state.images} />
-          <Button onClick={this.onClickLoadMore} page={this.state.page} />
-        </>
-      );
-    }
+  if (status === Status.RESOLVED) {
+    return (
+      <>
+        <ImageGallery images={images} />
+        {showButton && <Button onClick={() => setPage(page + 1)} />}
+      </>
+    );
   }
 }
+
+ImageInfo.propTypes = {
+  imageName: PropTypes.string.isRequired,
+  images: PropTypes.array.isRequired,
+  page: PropTypes.number.isRequired,
+  setImages: PropTypes.func.isRequired,
+  setPage: PropTypes.func.isRequired,
+};
 
 export default ImageInfo;

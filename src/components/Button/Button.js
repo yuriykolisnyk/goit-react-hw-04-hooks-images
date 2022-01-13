@@ -1,14 +1,8 @@
-import { Component } from 'react';
 import PropTypes from 'prop-types';
 
-class Button extends Component {
-  static propTypes = {
-    onClick: PropTypes.func.isRequired,
-    page: PropTypes.number.isRequired,
-  };
-
-  scroll = () => {
-    this.props.onClick();
+function Button({ onClick }) {
+  const scroll = () => {
+    onClick();
     setTimeout(() => {
       window.scrollBy({
         top: document.documentElement.clientHeight - 130,
@@ -17,13 +11,15 @@ class Button extends Component {
     }, 500);
   };
 
-  render() {
-    return (
-      <button onClick={this.scroll} className="Button" type="button">
-        Load more
-      </button>
-    );
-  }
+  return (
+    <button onClick={scroll} className="Button" type="button">
+      Load more
+    </button>
+  );
 }
+
+Button.propTypes = {
+  onClick: PropTypes.func.isRequired,
+};
 
 export default Button;
